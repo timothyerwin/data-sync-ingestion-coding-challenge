@@ -4,12 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "start": "npm run build && node dist/index.js",
-    "fast": "npm run build && node dist/fast-ingest.js",
-    "dev": "npm run build && node dist/index.js",
-    "export-ids": "npm run build && node dist/export-ids.js",
-    "explore": "npm run build && node dist/explore-api.js",
-    "test": "npm run build && node dist/quick-test.js"
+    "start": "npm run build && node dist/stream.js",
+    "export-ids": "npm run build && node dist/export-ids.js"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
