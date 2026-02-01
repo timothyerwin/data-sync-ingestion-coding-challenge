@@ -1,0 +1,22 @@
+{
+  "name": "datasync-ingestion",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node --loader ts-node/esm src/index.ts",
+    "dev": "node --loader ts-node/esm --watch src/index.ts",
+    "export-ids": "node --loader ts-node/esm src/export-ids.ts",
+    "explore": "node --loader ts-node/esm src/explore-api.ts",
+    "test": "node --loader ts-node/esm src/quick-test.ts"
+  },
+  "dependencies": {
+    "pg": "^8.11.3",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/pg": "^8.10.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}

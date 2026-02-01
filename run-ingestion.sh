@@ -5,6 +5,22 @@ echo "=============================================="
 echo "DataSync Ingestion - Running Solution"
 echo "=============================================="
 
+# Check if .env file exists
+if [ ! -f ".env" ]; then
+  echo "Error: .env file not found"
+  echo "Please create .env file with your API key:"
+  echo "  echo 'TARGET_API_KEY=your_key_here' > .env"
+  exit 1
+fi
+
+# Check if API key is set
+if ! grep -q "TARGET_API_KEY=" .env; then
+  echo "Error: TARGET_API_KEY not found in .env"
+  echo "Please add your API key to .env:"
+  echo "  echo 'TARGET_API_KEY=your_key_here' >> .env"
+  exit 1
+fi
+
 # Start the ingestion services
 echo "Starting services..."
 docker compose up -d --build
