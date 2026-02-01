@@ -5,6 +5,7 @@
   "scripts": {
     "build": "tsc",
     "start": "npm run build && node dist/index.js",
+    "fast": "npm run build && node dist/fast-ingest.js",
     "dev": "npm run build && node dist/index.js",
     "export-ids": "npm run build && node dist/export-ids.js",
     "explore": "npm run build && node dist/explore-api.js",
