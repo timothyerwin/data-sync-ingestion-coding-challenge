@@ -24,25 +24,55 @@ export class ApiClient {
       },
     });
 
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json() as ApiResponse;
-
-    // Parse rate limit headers
+    // Parse rate limit headers (present in both success and error responses)
     const rateLimitRemaining = response.headers.get('x-ratelimit-remaining');
     const rateLimitReset = response.headers.get('x-ratelimit-reset');
 
     let rateLimit: RateLimitInfo | null = null;
     if (rateLimitRemaining && rateLimitReset) {
+      // Reset is in seconds from now, not a timestamp
+      const resetSeconds = parseInt(rateLimitReset, 10);
       rateLimit = {
         remaining: parseInt(rateLimitRemaining, 10),
-        resetAt: new Date(parseInt(rateLimitReset, 10) * 1000).toISOString(),
+        resetAt: new Date(Date.now() + resetSeconds * 1000).toISOString(),
       };
     }
 
-    return { response: data, rateLimit };
+    // Handle rate limit errors
+    if (response.status === 429) {
+      const errorData = await response.json() as any;
+      const retryAfter = errorData.rateLimit?.retryAfter || parseInt(rateLimitReset || '60', 10);
+      throw new Error(`RATE_LIMIT_EXCEEDED:${retryAfter}`);
+    }
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json() as any;
+    
+    // Handle different response formats
+    // Format 1: Array of events
+    if (Array.isArray(data)) {
+      return {
+        response: {
+          data,
+          hasMore: data.length === limit,
+          nextCursor: null,
+        },
+        rateLimit,
+      };
+    }
+    
+    // Format 2: Object with data array
+    return {
+      response: {
+        data: data.data || [],
+        hasMore: data.hasMore || data.pagination?.hasMore || false,
+        nextCursor: data.nextCursor || data.pagination?.nextCursor || null,
+      },
+      rateLimit,
+    };
   }
 
   async testConnection(): Promise<void> {

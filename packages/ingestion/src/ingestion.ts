@@ -100,6 +100,16 @@ export class IngestionService {
         }
 
       } catch (error) {
+        const errorMsg = String(error);
+        
+        // Handle rate limit errors
+        if (errorMsg.includes('RATE_LIMIT_EXCEEDED')) {
+          const retryAfter = parseInt(errorMsg.split(':')[1] || '60', 10);
+          console.log(`Rate limit exceeded. Waiting ${retryAfter}s before retry...`);
+          await this.sleep(retryAfter * 1000 + 1000); // Add 1s buffer
+          continue;
+        }
+        
         console.error('Error fetching events:', error);
         await this.sleep(config.retryDelay);
       }

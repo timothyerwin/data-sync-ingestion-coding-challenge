@@ -10,8 +10,9 @@
     "test": "node --loader ts-node/esm src/quick-test.ts"
   },
   "dependencies": {
-    "pg": "^8.11.3",
-    "node-fetch": "^3.3.2"
+    "dotenv": "^17.2.3",
+    "node-fetch": "^3.3.2",
+    "pg": "^8.11.3"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
