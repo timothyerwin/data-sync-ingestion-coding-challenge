@@ -1,9 +1,3 @@
-import { config as loadEnv } from 'dotenv';
-import { resolve } from 'path';
-
-// Load .env from project root
-loadEnv({ path: resolve(process.cwd(), '../../.env') });
-
 export const config = {
   apiBaseUrl: process.env.API_BASE_URL || 'http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com/api/v1',
   apiKey: process.env.TARGET_API_KEY || '',

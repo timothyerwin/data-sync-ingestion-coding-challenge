@@ -1,4 +1,3 @@
-import fetch from 'node-fetch';
 import { config } from './config.js';
 import { ApiResponse, RateLimitInfo } from './types.js';
 
@@ -58,7 +57,7 @@ export class ApiClient {
         response: {
           data,
           hasMore: data.length === limit,
-          nextCursor: null,
+          nextCursor: undefined,
         },
         rateLimit,
       };
@@ -69,7 +68,7 @@ export class ApiClient {
       response: {
         data: data.data || [],
         hasMore: data.hasMore || data.pagination?.hasMore || false,
-        nextCursor: data.nextCursor || data.pagination?.nextCursor || null,
+        nextCursor: data.nextCursor || data.pagination?.nextCursor || undefined,
       },
       rateLimit,
     };

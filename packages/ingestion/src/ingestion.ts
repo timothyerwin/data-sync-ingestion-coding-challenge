@@ -104,9 +104,10 @@ export class IngestionService {
         
         // Handle rate limit errors
         if (errorMsg.includes('RATE_LIMIT_EXCEEDED')) {
-          const retryAfter = parseInt(errorMsg.split(':')[1] || '60', 10);
+          const parts = errorMsg.split(':');
+          const retryAfter = parts.length > 2 ? parseInt(parts[2], 10) : 60;
           console.log(`Rate limit exceeded. Waiting ${retryAfter}s before retry...`);
-          await this.sleep(retryAfter * 1000 + 1000); // Add 1s buffer
+          await this.sleep((retryAfter || 60) * 1000 + 1000); // Add 1s buffer
           continue;
         }
         
