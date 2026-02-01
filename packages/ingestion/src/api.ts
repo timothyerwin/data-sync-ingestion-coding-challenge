@@ -4,10 +4,12 @@ import { ApiResponse, RateLimitInfo } from './types.js';
 export class ApiClient {
   private baseUrl: string;
   private apiKey: string;
+  private useQueryAuth: boolean;
 
-  constructor() {
+  constructor(useQueryAuth: boolean = false) {
     this.baseUrl = config.apiBaseUrl;
     this.apiKey = config.apiKey;
+    this.useQueryAuth = useQueryAuth;
   }
 
   async fetchEvents(cursor: string | null = null, limit: number = 1000): Promise<{ response: ApiResponse; rateLimit: RateLimitInfo | null }> {
@@ -16,12 +18,16 @@ export class ApiClient {
     if (cursor) {
       url.searchParams.set('cursor', cursor);
     }
+    
+    // Use query param auth OR header auth
+    const headers: Record<string, string> = {};
+    if (this.useQueryAuth) {
+      url.searchParams.set('api_key', this.apiKey);
+    } else {
+      headers['X-API-Key'] = this.apiKey;
+    }
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        'X-API-Key': this.apiKey,
-      },
-    });
+    const response = await fetch(url.toString(), { headers });
 
     // Parse rate limit headers (present in both success and error responses)
     const rateLimitRemaining = response.headers.get('x-ratelimit-remaining');

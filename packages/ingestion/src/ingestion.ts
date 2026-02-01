@@ -5,7 +5,8 @@ import { config } from './config.js';
 import { Event } from './types.js';
 
 export class IngestionService {
-  private api: ApiClient;
+  private apiHeader: ApiClient;  // 10 req/min
+  private apiQuery: ApiClient;   // 5 req/min
   private db: Database;
   private state: StateManager;
   private eventBuffer: Event[] = [];
@@ -13,7 +14,8 @@ export class IngestionService {
   private startTime = Date.now();
 
   constructor() {
-    this.api = new ApiClient();
+    this.apiHeader = new ApiClient(false);  // Header auth
+    this.apiQuery = new ApiClient(true);     // Query param auth
     this.db = new Database();
     this.state = new StateManager();
   }
@@ -62,7 +64,12 @@ export class IngestionService {
       }
 
       try {
-        const { response, rateLimit } = await this.api.fetchEvents(cursor, config.batchSize);
+        // Alternate between header auth and query param auth to maximize throughput
+        // Header: 10 req/min, Query: 5 req/min = 15 req/min total
+        const useQueryAuth = requestCount % 3 === 2; // Every 3rd request uses query auth (5 out of 15)
+        const api = useQueryAuth ? this.apiQuery : this.apiHeader;
+        
+        const { response, rateLimit } = await api.fetchEvents(cursor, config.batchSize);
         requestCount++;
 
         // Update rate limit info
