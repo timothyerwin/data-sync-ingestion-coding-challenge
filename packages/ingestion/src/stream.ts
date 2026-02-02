@@ -70,6 +70,19 @@ async function go() {
       continue;
     }
 
+    if (res.status === 400) {
+      const errorText = await res.text();
+      if (errorText.includes('CURSOR_EXPIRED')) {
+        console.log('\nCursor expired, fetching fresh cursor...');
+        cursor = null;
+        state.updateState({ cursor: null, cursorCreatedAt: null });
+        continue;
+      }
+      console.error(`\nHTTP 400: ${errorText.substring(0, 200)}`);
+      await new Promise(r => setTimeout(r, 2000));
+      continue;
+    }
+
     if (res.status === 429) {
       await new Promise(r => setTimeout(r, 6000));
       continue;
@@ -82,7 +95,8 @@ async function go() {
     }
 
     if (!res.ok) {
-      console.error(`\nHTTP ${res.status}`);
+      const errorText = await res.text();
+      console.error(`\nHTTP ${res.status}: ${errorText.substring(0, 200)}`);
       await new Promise(r => setTimeout(r, 2000));
       continue;
     }
