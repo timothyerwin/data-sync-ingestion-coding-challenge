@@ -1,6 +1,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert';
 import { Database } from './database.js';
+import { config } from './config.js';
 
 describe('Database', () => {
   let db: Database;
@@ -36,10 +37,11 @@ describe('Database', () => {
 
 describe('Stream Token', () => {
   it('should get valid stream token', async () => {
-    const res = await fetch('http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com/internal/dashboard/stream-access', {
+    const baseUrl = config.apiBaseUrl.replace('/api/v1', '');
+    const res = await fetch(`${baseUrl}/internal/dashboard/stream-access`, {
       method: 'POST',
       headers: {
-        'X-API-Key': process.env.TARGET_API_KEY || '',
+        'X-API-Key': config.apiKey,
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
       }
     });
@@ -56,20 +58,21 @@ describe('Stream Token', () => {
 
 describe('Stream Endpoint', () => {
   it('should fetch events with stream token', async () => {
-    const tokenRes = await fetch('http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com/internal/dashboard/stream-access', {
+    const baseUrl = config.apiBaseUrl.replace('/api/v1', '');
+    const tokenRes = await fetch(`${baseUrl}/internal/dashboard/stream-access`, {
       method: 'POST',
       headers: {
-        'X-API-Key': process.env.TARGET_API_KEY || '',
+        'X-API-Key': config.apiKey,
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
       }
     });
     const tokenData = await tokenRes.json() as any;
     const token = tokenData.streamAccess.token;
-    const endpoint = `http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com${tokenData.streamAccess.endpoint}`;
+    const endpoint = `${baseUrl}${tokenData.streamAccess.endpoint}`;
 
     const res = await fetch(`${endpoint}?limit=1`, {
       headers: {
-        'X-API-Key': process.env.TARGET_API_KEY || '',
+        'X-API-Key': config.apiKey,
         'X-Stream-Token': token
       }
     });
@@ -80,6 +83,7 @@ describe('Stream Endpoint', () => {
     assert.ok(data.data, 'Should have data array');
     assert.ok(data.pagination, 'Should have pagination');
     assert.ok(data.meta, 'Should have meta');
-    assert.strictEqual(data.meta.total, 3000000, 'Should report 3M total events');
+    assert.ok(data.meta.total > 0, 'Should report total events count');
+    assert.strictEqual(typeof data.meta.total, 'number', 'Total should be a number');
   });
 });

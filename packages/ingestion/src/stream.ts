@@ -7,7 +7,8 @@ import { config } from './config.js';
 import { StateManager } from './state.js';
 
 async function getStreamToken() {
-  const tokenRes = await fetch(`${config.apiBaseUrl.replace('/api/v1', '')}/internal/dashboard/stream-access`, {
+  const baseUrl = config.apiBaseUrl.replace('/api/v1', '');
+  const tokenRes = await fetch(`${baseUrl}/internal/dashboard/stream-access`, {
     method: 'POST',
     headers: {
       'X-API-Key': config.apiKey,
@@ -17,7 +18,7 @@ async function getStreamToken() {
   const tokenData = await tokenRes.json() as any;
   return {
     token: tokenData.streamAccess.token,
-    endpoint: `http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com${tokenData.streamAccess.endpoint}`,
+    endpoint: `${baseUrl}${tokenData.streamAccess.endpoint}`,
     expiresIn: tokenData.streamAccess.expiresIn,
     fetchedAt: Date.now()
   };
