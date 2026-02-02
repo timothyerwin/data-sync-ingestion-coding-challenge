@@ -53,8 +53,8 @@ The challenge hints that "top candidates finish in under 30 minutes" but the doc
 - ⚠️ Health checks (basic error detection, no formal health endpoint)
 
 ### NICE TO HAVE
-- ❌ Unit tests (not implemented due to time constraints)
-- ❌ Integration tests (not implemented due to time constraints)
+- ✅ Unit tests (stream.test.ts - database operations, API integration)
+- ✅ Integration tests (stream.test.ts - end-to-end stream token + fetch)
 - ⚠️ Metrics/monitoring (console-based progress tracking)
 - ✅ Architecture documentation (this file + SOLUTION.md)
 
@@ -113,6 +113,12 @@ sh run-ingestion.sh
 cd packages/ingestion
 npm install
 npm start
+```
+
+**Run tests:**
+```bash
+cd packages/ingestion
+npm test
 ```
 
 ## What Would Be Improved With More Time

@@ -5,7 +5,8 @@
   "scripts": {
     "build": "tsc",
     "start": "npm run build && node dist/stream.js",
-    "export-ids": "npm run build && node dist/export-ids.js"
+    "export-ids": "npm run build && node dist/export-ids.js",
+    "test": "npm run build && node --test dist/stream.test.js"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
