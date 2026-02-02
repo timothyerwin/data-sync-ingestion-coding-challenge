@@ -111,8 +111,8 @@ async function go() {
     }
 
     if (events.length > 0) {
-      await db.batchInsert(events);
-      total += events.length;
+      const inserted = await db.batchInsert(events);
+      total += inserted;
     }
 
     cursor = json.pagination?.nextCursor || null;
