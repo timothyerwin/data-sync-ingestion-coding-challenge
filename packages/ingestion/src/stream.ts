@@ -15,7 +15,18 @@ async function getStreamToken() {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     }
   });
+  
+  if (!tokenRes.ok) {
+    const errorText = await tokenRes.text();
+    throw new Error(`Failed to get stream token: ${tokenRes.status} ${errorText}`);
+  }
+  
   const tokenData = await tokenRes.json() as any;
+  
+  if (!tokenData.streamAccess || !tokenData.streamAccess.token) {
+    throw new Error(`Invalid stream access response: ${JSON.stringify(tokenData)}`);
+  }
+  
   return {
     token: tokenData.streamAccess.token,
     endpoint: `${baseUrl}${tokenData.streamAccess.endpoint}`,
