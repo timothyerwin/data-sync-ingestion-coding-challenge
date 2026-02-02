@@ -74,8 +74,14 @@ async function go() {
       continue;
     }
 
+    if (res.status >= 500) {
+      console.error(`\nServer error ${res.status}, waiting 10s...`);
+      await new Promise(r => setTimeout(r, 10000));
+      continue;
+    }
+
     if (!res.ok) {
-      console.error(`HTTP ${res.status}`);
+      console.error(`\nHTTP ${res.status}`);
       await new Promise(r => setTimeout(r, 2000));
       continue;
     }
