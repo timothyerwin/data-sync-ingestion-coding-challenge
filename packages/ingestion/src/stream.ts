@@ -4,6 +4,7 @@ dotenv.config({ path: resolve(process.cwd(), '../../.env') });
 
 import { Database } from './database.js';
 import { config } from './config.js';
+import { StateManager } from './state.js';
 
 async function getStreamToken() {
   const tokenRes = await fetch(`${config.apiBaseUrl.replace('/api/v1', '')}/internal/dashboard/stream-access`, {
@@ -26,15 +27,22 @@ async function go() {
   const db = new Database();
   await db.initialize();
 
+  const state = new StateManager();
+  const savedState = state.getState();
+  
   let streamAccess = await getStreamToken();
   console.log('Stream token:', streamAccess.token.substring(0, 20) + '...');
-  console.log('Starting ingestion...\n');
-
-  let cursor: string | null = null;
-  let total = 0;
+  
+  let cursor: string | null = savedState.cursor;
+  let total = savedState.eventsIngested;
   let hasMore = true;
   let apiTotal: number | null = null;
   const start = Date.now();
+  
+  if (total > 0) {
+    console.log(`Resuming from ${total.toLocaleString()} events already ingested`);
+  }
+  console.log('Starting ingestion...\n');
 
   while (hasMore) {
     // Refresh token if expired (5 min = 300s, refresh at 270s)
@@ -88,6 +96,16 @@ async function go() {
 
     cursor = json.pagination?.nextCursor || null;
     hasMore = json.pagination?.hasMore || false;
+    
+    // Save state periodically (every 5000 events)
+    if (total % 5000 === 0) {
+      state.updateState({
+        cursor,
+        cursorCreatedAt: cursor ? new Date().toISOString() : null,
+        eventsIngested: total,
+        status: 'running'
+      });
+    }
 
     const elapsed = (Date.now() - start) / 1000;
     const rate = total / elapsed;
@@ -101,8 +119,26 @@ async function go() {
     }
   }
 
-  console.log(`\n\nDONE: ${total.toLocaleString()} events in ${((Date.now() - start) / 60000).toFixed(2)} minutes`);
+  const totalTime = ((Date.now() - start) / 60000).toFixed(2);
+  console.log(`\n\nDONE: ${total.toLocaleString()} events in ${totalTime} minutes`);
+  if (apiTotal && total !== apiTotal) {
+    console.warn(`WARNING: Ingested ${total} but API reported ${apiTotal} total`);
+  }
+  
+  state.updateState({
+    cursor: null,
+    cursorCreatedAt: null,
+    eventsIngested: total,
+    status: 'complete'
+  });
+  
   await db.close();
 }
+
+go().catch(err => {
+  console.error('Fatal error:', err);
+  process.exit(1);
+});
+
 
 go();
