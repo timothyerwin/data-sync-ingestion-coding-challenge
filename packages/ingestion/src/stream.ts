@@ -72,8 +72,8 @@ async function go() {
 
     if (res.status === 400) {
       const errorText = await res.text();
-      if (errorText.includes('CURSOR_EXPIRED')) {
-        console.log('\nCursor expired, fetching fresh cursor...');
+      if (errorText.includes('CURSOR_EXPIRED') || errorText.includes('CURSOR_INVALID_FORMAT')) {
+        console.log('\nCursor invalid/expired, fetching fresh cursor...');
         cursor = null;
         state.updateState({ cursor: null, cursorCreatedAt: null });
         continue;
