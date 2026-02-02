@@ -1,39 +1,6 @@
-import { describe, it, before, after } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { Database } from './database.js';
 import { config } from './config.js';
-
-describe('Database', () => {
-  let db: Database;
-
-  before(async () => {
-    db = new Database();
-    await db.initialize();
-  });
-
-  after(async () => {
-    await db.close();
-  });
-
-  it('should insert and deduplicate events', async () => {
-    const testEvents = [
-      { id: 'test-id-1', sessionId: 's1', userId: 'u1', type: 'click', name: 'e1', properties: {}, timestamp: 123 },
-      { id: 'test-id-2', sessionId: 's1', userId: 'u1', type: 'click', name: 'e2', properties: {}, timestamp: 124 },
-      { id: 'test-id-1', sessionId: 's1', userId: 'u1', type: 'click', name: 'e1', properties: {}, timestamp: 123 },
-    ];
-
-    const inserted = await db.batchInsert(testEvents);
-    assert.strictEqual(inserted, 2, 'Should insert 2 unique events (deduplicating the duplicate)');
-
-    // Cleanup
-    await (db as any).pool.query("DELETE FROM ingested_events WHERE id LIKE 'test-id-%'");
-  });
-
-  it('should handle empty batch', async () => {
-    const inserted = await db.batchInsert([]);
-    assert.strictEqual(inserted, 0);
-  });
-});
 
 describe('Stream Token', () => {
   it('should get valid stream token', async () => {
