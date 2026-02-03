@@ -96,10 +96,20 @@ export class StreamClient {
 
     let json: any;
     try {
-      json = await res.json();
+      // Clone response to read text if json fails? No, can only read body once.
+      // So read text first, then parse.
+      const text = await res.text();
+      try {
+        json = JSON.parse(text);
+      } catch (e) {
+        console.error(`\nJSON parse error. Body snippet: ${text.substring(0, 100)}...`);
+        throw e;
+      }
     } catch (parseError: any) {
-      console.error(`\nJSON parse error, retrying: ${parseError.message}`);
+      console.error(`\nRetrying batch due to parse error...`);
       await new Promise(r => setTimeout(r, 1000));
+      // Force token refresh on parse error, might be session issue
+      this.streamAccess = await this.getStreamToken();
       return this.fetchBatch(cursor);
     }
     

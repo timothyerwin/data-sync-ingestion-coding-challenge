@@ -1,220 +1,57 @@
-## Overview
+# DataSync Ingestion Solution
 
-Build a production-ready data ingestion system that extracts event data from the DataSync Analytics API and stores it in a PostgreSQL database.
+## The Key Discovery: High-Throughput Stream Endpoint
 
-## Requirements
+The standard `/api/v1/events` endpoint has strict rate limiting (10 req/min).
+The hidden high-performance endpoint is accessed by:
+1. POST to `/internal/dashboard/stream-access` with a browser User-Agent
+2. Receive a stream token (valid 5 mins)
+3. Use `/api/v1/events/d4ta/x7k9/feed` with `X-Stream-Token`
+4. This allows **~4,000-8,000 events/sec**.
 
-Your solution must:
+## Architecture
 
-1. Run entirely in Docker using the provided `docker-compose.yml`
-2. Work with the command: `sh run-ingestion.sh`
-**Tools Policy:**
-- **Allowed:** Any AI coding tools or development tools during development
-- **Solution constraint:** Your final solution must run entirely in Docker without requiring external API keys or 3rd party services
+This solution uses a **Fetch-then-Load** architecture for maximum speed:
 
+1. **Fast Fetch**: 
+   - Node.js streams events from the API to a local file (`events.csv`).
+   - Uses `fs.createWriteStream` for high-performance sequential writes.
+   - Handles API rate limits, token refreshes, and JSON parsing automatically.
 
-If you use AI tools, please document which ones and how they helped in your solution's README.
+2. **Native Load**:
+   - Uses PostgreSQL's native `COPY` command via `psql` to load the CSV file.
+   - This bypasses Node.js database driver overhead and inserts 3M rows in seconds.
 
-## The Challenge
+## How to Run (Docker)
 
-DataSync Analytics is a live application with:
-- **Dashboard:** http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com (explore the UI!)
-- **API:** http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com/api/v1
+1. **Set your API key**:
+   ```bash
+   echo "TARGET_API_KEY=your_api_key_here" > .env
+   ```
 
-Your task is to:
+2. **Run the ingestion**:
+   ```bash
+   sh run-ingestion.sh
+   ```
 
-1. **Connect** to the DataSync API
-2. **Extract** ALL events from the system (3,000,000)
-3. **Handle** the API's pagination correctly
-4. **Respect** rate limits
-5. **Store** data in PostgreSQL
-7. **Make it resumable** (save progress, resume after failure)
+3. **Export and Submit**:
+   ```bash
+   # Export IDs
+   docker exec assignment-ingestion npm run export-ids
+   docker cp assignment-ingestion:/app/event_ids.txt .
 
-### Important Notes
+   # Submit
+   ./submit.sh https://github.com/yourusername/your-repo
+   ```
 
-- The API documentation is minimal by design
-- Part of this challenge is **discovering** how the API works
-- Pay attention to response headers and data formats
-- The API has behaviors that aren't documented
-- Timestamp formats may vary across responses - normalize carefully
+## Performance
 
-## Getting Started
+- **Fetching**: ~6-12 minutes (depending on API load)
+- **Loading**: < 1 minute
+- **Total Time**: Well under the 30-minute target.
 
-### Prerequisites
+## File Structure
 
-- Docker and Docker Compose
-- Node.js 20+
-- npm or yarn
-
-### Your Workspace
-
-Use this directory as your workspace. A `docker-compose.yml` is provided with PostgreSQL for your solution.
-
-```bash
-docker compose up -d
-```
-
-This gives you:
-- PostgreSQL at `localhost:5434`
-
-### Exploring the Application
-
-**Dashboard:** http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com
-- Browse the dashboard to understand the data model
-- Curious developers explore everything...
-
-**API Base URL:** `http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com/api/v1`
-
-**API Key:** You should have received a unique API key from your interviewer.
-
-> **Important:** Your API key is valid for **3 hours from first use**. The timer starts when you make your first API call. Plan your work accordingly.
-
-**API Documentation:** http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com/docs/api.md
-
-## Requirements
-
-### Must Have
-
-1. **TypeScript** codebase
-2. **PostgreSQL** for data storage
-3. **Docker Compose** for running your solution
-4. **Proper error handling** and logging
-5. **Rate limit handling** - respect the API limits
-6. **Resumable ingestion** - if the process crashes, it should resume from where it left off
-
-### Should Have
-
-1. **Throughput optimization** - maximize events per second
-2. **Progress tracking** - show ingestion progress
-3. **Health checks** - monitor worker health
-
-### Nice to Have
-
-1. **Unit tests**
-2. **Integration tests**
-3. **Metrics/monitoring**
-4. **Architecture documentation**
-
-## Submitting Your Results
-
-Once you've ingested all events, submit your results to verify completion.
-
-### Step 1: Push Your Solution to GitHub
-
-Before submitting, push your solution to a GitHub repository. This allows us to review your code and see your commit history/progress.
-
-### Step 2: Submit via API
-
-**POST** `http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com/api/v1/submissions`
-
-Submit a file containing all event IDs (one per line) along with your GitHub repo URL.
-
-**Headers:**
-- `X-API-Key`: Your API key
-- `Content-Type`: `text/plain` or `application/json`
-
-**Option 1: Plain text with query param (recommended)**
-```bash
-curl -X POST \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "Content-Type: text/plain" \
-  --data-binary @event_ids.txt \
-  "http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com/api/v1/submissions?github_repo=https://github.com/yourusername/your-repo"
-```
-
-**Option 2: JSON**
-```bash
-curl -X POST \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "ids": "id1\nid2\nid3",
-    "githubRepoUrl": "https://github.com/yourusername/your-repo"
-  }' \
-  http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com/api/v1/submissions
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "submissionId": "uuid",
-    "eventCount": 3000000,
-    "githubRepoUrl": "https://github.com/yourusername/your-repo",
-    "submittedAt": "2024-01-15T10:30:00.000Z",
-    "timeToSubmit": {
-      "ms": 1234567,
-      "seconds": 1235,
-      "minutes": 20.6,
-      "formatted": "20m 35s"
-    },
-    "submissionNumber": 1,
-    "remainingSubmissions": 4
-  },
-  "message": "Submission #1 received with 3,000,000 event IDs. 4 submissions remaining."
-}
-```
-
-**Limits:**
-- Maximum **5 submissions** per API key
-- The response includes your completion time (from first API call to submission)
-
-**Check your submissions:**
-```bash
-curl -H "X-API-Key: YOUR_API_KEY" \
-  http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com/api/v1/submissions
-```
-
-## Important: Verification Testing
-
-**Your solution will be tested after submission to verify it works correctly.**
-
-- The full ingestion must work when running `sh run-ingestion.sh` from scratch on a clean Linux machine using Docker
-- We will run your solution on a fresh environment with only Docker installed
-- The following do NOT count as valid solutions:
-  - WIP/incomplete code that requires manual intervention
-  - Solutions that require manual pauses or human interaction during execution
-  - Code that needs to be modified after starting the ingestion
-  - Solutions that only work after multiple manual restarts
-
-Your solution must be fully automated and complete the entire ingestion without any manual steps.
-
-## What to Submit
-
-Your solution should include:
-
-1. All source code in the `packages/` directory
-2. Updated `docker-compose.yml` if needed
-3. `README.md` with:
-   - How to run your solution
-   - Architecture overview
-   - Any discoveries about the API
-   - What you would improve with more time
-
-## Evaluation Criteria
-
-| Category | Weight |
-|----------|--------|
-| API Discovery & Throughput | 60% |
-| Job Processing Architecture | 40% |
-
-**Your score is primarily based on throughput** - how many events per minute can your solution ingest?
-
-> **Challenge yourself:** Top candidates have solved this entire challenge - including ingesting all 3M events - in under 30 minutes. If you feel limited by the API, keep pushing. There's always a faster way.
-
-## Tips
-
-- Start by exploring the API thoroughly - this is critical
-- Make requests, look at responses, **check headers carefully**
-- The documented API may not be the fastest way...
-- Think about failure scenarios - what happens if the process crashes mid-ingestion?
-- Consider how to **maximize throughput** while respecting rate limits
-- Good engineers explore every corner of an application
-- Cursors have a lifecycle - don't let them get stale
-
-## Questions?
-
-If something is unclear about the requirements (not the API!), please reach out to your contact.
-
-Good luck!
+- `src/ingest-file.ts`: Main fetcher logic.
+- `src/stream-client.ts`: Handles API authentication, streaming, and error recovery.
+- `src/start.sh`: Orchestrates the Fetch + Load process inside Docker.
