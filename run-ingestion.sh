@@ -37,8 +37,18 @@ echo "=============================================="
 
 while true; do
     COUNT=$(docker exec assignment-postgres psql -U postgres -d ingestion -t -c "SELECT COUNT(*) FROM ingested_events;" 2>/dev/null | tr -d ' ' || echo "0")
+    
+    # Check for fetch progress in logs
+    FETCH_PROGRESS=$(docker logs --tail 1 assignment-ingestion 2>&1 | grep "Fetched:" | cut -c 1-80)
+    if [ ! -z "$FETCH_PROGRESS" ]; then
+       echo "[$(date '+%H:%M:%S')] $FETCH_PROGRESS"
+    else
+       echo "[$(date '+%H:%M:%S')] Events in DB: $COUNT"
+    fi
 
-    if docker logs assignment-ingestion 2>&1 | grep -q "ingestion complete" 2>/dev/null; then
+    if docker logs assignment-ingestion 2>&1 | grep -iq "ingestion complete"; then
+        # Update count one last time
+        COUNT=$(docker exec assignment-postgres psql -U postgres -d ingestion -t -c "SELECT COUNT(*) FROM ingested_events;" 2>/dev/null | tr -d ' ' || echo "0")
         echo ""
         echo "=============================================="
         echo "INGESTION COMPLETE!"
@@ -47,6 +57,5 @@ while true; do
         exit 0
     fi
 
-    echo "[$(date '+%H:%M:%S')] Events ingested: $COUNT"
     sleep 5
 done

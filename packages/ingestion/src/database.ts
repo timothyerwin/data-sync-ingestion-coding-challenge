@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { from as copyFrom } from 'pg-copy-streams';
 import { config } from './config.js';
 import { Event } from './types.js';
 
@@ -18,15 +19,10 @@ export class Database {
     const client = await this.pool.connect();
     try {
       await client.query(`
-        CREATE TABLE IF NOT EXISTS ingested_events (
+        CREATE UNLOGGED TABLE IF NOT EXISTS ingested_events (
           id TEXT PRIMARY KEY,
-          data JSONB NOT NULL,
-          ingested_at TIMESTAMP DEFAULT NOW()
+          data JSONB NOT NULL
         )
-      `);
-
-      await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_ingested_at ON ingested_events(ingested_at)
       `);
 
       console.log('Database initialized');
@@ -40,26 +36,33 @@ export class Database {
 
     const client = await this.pool.connect();
     try {
-      // Use COPY for fast bulk insert
-      const values = events.map(event => 
-        `${event.id}\t${JSON.stringify(event)}`
-      ).join('\n');
-
-      // Use INSERT with ON CONFLICT for deduplication
-      const placeholders = events.map((_, i) => {
-        const offset = i * 2;
-        return `($${offset + 1}, $${offset + 2})`;
-      }).join(', ');
-
-      const values2 = events.flatMap(event => [event.id, JSON.stringify(event)]);
-
-      const result = await client.query(
-        `INSERT INTO ingested_events (id, data) 
-         VALUES ${placeholders}
-         ON CONFLICT (id) DO NOTHING`,
-        values2
-      );
-
+      // Use COPY directly to main table via temp staging
+      const tableName = `temp_copy_${Date.now()}`;
+      await client.query(`CREATE TEMP TABLE ${tableName} (id TEXT, data JSONB)`);
+      
+      // COPY is 10-100x faster than INSERT
+      const stream = client.query(copyFrom(`COPY ${tableName} (id, data) FROM STDIN`));
+      
+      const copyPromise = new Promise<void>((resolve, reject) => {
+        stream.on('finish', () => resolve());
+        stream.on('error', reject);
+      });
+      
+      for (const event of events) {
+        stream.write(`${event.id}\t${JSON.stringify(event)}\n`);
+      }
+      
+      stream.end();
+      await copyPromise;
+      
+      // Insert with deduplication
+      const result = await client.query(`
+        INSERT INTO ingested_events (id, data)
+        SELECT id, data FROM ${tableName}
+        ON CONFLICT (id) DO NOTHING
+      `);
+      
+      await client.query(`DROP TABLE ${tableName}`);
       return result.rowCount || 0;
     } finally {
       client.release();

@@ -4,18 +4,21 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "start": "npm run build && node dist/stream.js",
-    "export-ids": "npm run build && node dist/export-ids.js",
+    "start": "sh src/start.sh",
+    "export-ids": "tsc && node dist/export-ids.js",
     "test": "npm run build && node --test dist/**/*.test.js"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
     "node-fetch": "^3.3.2",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "pg-copy-streams": "^7.0.0",
+    "redis": "^5.10.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/pg": "^8.10.9",
+    "@types/pg-copy-streams": "^1.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   }
